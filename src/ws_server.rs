@@ -66,14 +66,19 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsSession {
 impl WsSession {
     pub fn handle_valid_message(&mut self, msg: ClientMessage, ctx: &mut <Self as Actor>::Context) {
         match msg {
-            ClientMessage::Register => self.register_new_player(ctx),
+            ClientMessage::Register => self.handle_registration(ctx),
         }
     }
 
-    pub fn register_new_player(&mut self, ctx: &mut <Self as Actor>::Context) {
+    pub fn handle_registration(&mut self, ctx: &mut <Self as Actor>::Context) {
+        if self.player_id.is_some() {
+            return;
+        }
+
         let player_id = PlayerID(self.player_id_counter.0.fetch_add(1, Ordering::AcqRel));
         let response = serde_json::to_string(&ServerMessage::Registered { player_id }).unwrap();
         ctx.text(response);
+        self.player_id = Some(player_id);
     }
 }
 
