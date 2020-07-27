@@ -101,7 +101,7 @@ impl CheckersGame {
             .enumerate()
             .filter_map(|(pos, piece)| {
                 piece.and_then(|piece| {
-                    if self.is_capturing_piece(pos) {
+                    if self.is_capturing_piece(pos, piece) {
                         Some((pos, piece))
                     } else {
                         None
@@ -111,16 +111,16 @@ impl CheckersGame {
             .collect()
     }
 
-    fn is_capturing_piece(&self, pos: usize) -> bool {
-        match self.table[pos] {
-            Some(piece) => Self::adjacent_positions(pos, piece)
-                .iter()
-                .any(|&other_position| match self.table[other_position] {
-                    Some(other_piece) => other_piece.team != piece.team,
-                    None => false,
-                }),
-            None => false,
-        }
+    fn is_capturing_piece(&self, pos: usize, piece: Piece) -> bool {
+        Self::capture_positions(pos, piece).into_iter().any(|p| {
+            let (_, captured_piece) = self.captured_piece(pos, p);
+            match captured_piece {
+                Some(captured_piece) => {
+                    captured_piece.team != piece.team && self.table[p].is_none()
+                }
+                None => false,
+            }
+        })
     }
 
     fn table_row(pos: i32) -> i32 {
@@ -248,7 +248,7 @@ impl CheckersGame {
                 Some(captured_piece) if captured_piece.team != piece.team => {
                     self.do_jump(from, to);
                     self.table[captured_pos] = None;
-                    if self.is_capturing_piece(to) {
+                    if self.is_capturing_piece(to, piece) {
                         self.mandatory_capturing_piece = Some((to, piece));
                     } else {
                         self.mandatory_capturing_piece = None;
@@ -352,7 +352,7 @@ mod tests {
         table[13] = Some(Piece::LIGHT_MAN);
         table[14] = Some(Piece::LIGHT_MAN);
         table[4] = Some(Piece::DARK_MAN);
-        let mut game = CheckersGame::from_table(table);
+        let game = CheckersGame::from_table(table);
         assert_eq!(game.capturing_pieces(), no_capturing_pieces);
 
         let mut table = [None; TABLE_SIZE];
@@ -362,11 +362,32 @@ mod tests {
         table[13] = Some(Piece::LIGHT_MAN);
         table[14] = Some(Piece::LIGHT_MAN);
         table[4] = Some(Piece::DARK_MAN);
-        let mut game = CheckersGame::from_table(table);
+        let game = CheckersGame::from_table(table);
+        assert_eq!(game.capturing_pieces(), no_capturing_pieces);
+
+        let mut table = [None; TABLE_SIZE];
+        table[5] = Some(Piece::DARK_KING);
+        table[6] = Some(Piece::LIGHT_MAN);
+        table[9] = Some(Piece::LIGHT_MAN);
+        table[13] = Some(Piece::LIGHT_MAN);
+        table[4] = Some(Piece::DARK_MAN);
+        let game = CheckersGame::from_table(table);
         assert_eq!(game.capturing_pieces(), vec![(5, Piece::DARK_KING)]);
 
         let mut table = [None; TABLE_SIZE];
         table[5] = Some(Piece::LIGHT_MAN);
+        table[6] = Some(Piece::LIGHT_MAN);
+        table[9] = Some(Piece::LIGHT_MAN);
+        table[13] = Some(Piece::LIGHT_MAN);
+        table[14] = Some(Piece::DARK_MAN);
+        table[4] = Some(Piece::DARK_MAN);
+        let game = CheckersGame::from_table(table);
+        assert_eq!(
+            HashSet::<_>::from_iter(game.capturing_pieces().into_iter()),
+            HashSet::<_>::from_iter(vec![(9, Piece::LIGHT_MAN)].into_iter())
+        );
+
+        let mut table = [None; TABLE_SIZE];
         table[6] = Some(Piece::LIGHT_MAN);
         table[9] = Some(Piece::LIGHT_MAN);
         table[13] = Some(Piece::LIGHT_MAN);
@@ -392,7 +413,6 @@ mod tests {
             HashSet::<_>::from_iter(
                 vec![
                     (9, Piece::LIGHT_MAN),
-                    (14, Piece::DARK_MAN),
                     (5, Piece::LIGHT_MAN),
                     (8, Piece::DARK_MAN)
                 ]
