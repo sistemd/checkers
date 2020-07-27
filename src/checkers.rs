@@ -150,7 +150,6 @@ impl CheckersGame {
     }
 
     fn capture_positions(pos: usize, piece: Piece) -> Vec<usize> {
-        let row = Self::table_row(pos as i32);
         let offset = (FIELDS_PER_ROW * 2) as i32;
 
         Self::valid_advance_positions(
@@ -241,6 +240,7 @@ impl CheckersGame {
             self.do_jump(from, to);
             self.mandatory_capturing_piece = None;
             self.toggle_team_on_turn();
+            self.promote_kings();
             true
         } else if Self::capture_positions(from, piece).contains(&to) {
             let (captured_pos, captured_piece) = self.captured_piece(from, to);
@@ -254,6 +254,7 @@ impl CheckersGame {
                         self.mandatory_capturing_piece = None;
                         self.toggle_team_on_turn();
                     }
+                    self.promote_kings();
                     true
                 }
                 _ => false,
@@ -276,6 +277,30 @@ impl CheckersGame {
         };
 
         (captured_pos, self.table[captured_pos])
+    }
+
+    fn promote_kings(&mut self) {
+        let promote_in_row = |row: &mut [Option<Piece>], team| {
+            for piece in row {
+                match piece {
+                    Some(piece) if piece.kind == PieceKind::Man && piece.team == team => {
+                        piece.kind = PieceKind::King
+                    }
+                    _ => {}
+                }
+            }
+        };
+
+        promote_in_row(self.top_row(), Team::Dark);
+        promote_in_row(self.bottom_row(), Team::Light);
+    }
+
+    fn top_row(&mut self) -> &mut [Option<Piece>] {
+        &mut self.table[..4]
+    }
+
+    fn bottom_row(&mut self) -> &mut [Option<Piece>] {
+        &mut self.table[28..]
     }
 
     fn field_is_free(&self, pos: usize) -> bool {
@@ -449,9 +474,56 @@ mod tests {
         assert!(!game.jump(13, 16));
         assert!(game.jump(13, 22));
         assert_eq!(game.team_on_turn(), Team::Dark);
+        assert!(game.table()[17].is_none());
+        assert!(game.table()[13].is_none());
+        assert!(game.table()[22] == Some(Piece::LIGHT_MAN));
         assert_eq!(
             HashSet::<_>::from_iter(game.mandatory_capturing_pieces().into_iter()),
             HashSet::<_>::from_iter(vec![(25, Piece::DARK_MAN), (26, Piece::DARK_MAN)].into_iter())
         );
+
+        assert!(!game.jump(21, 17));
+        assert!(!game.jump(26, 19));
+        assert!(game.jump(26, 17));
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert!(game.table()[26].is_none());
+        assert!(game.table()[22].is_none());
+        assert!(game.table()[17] == Some(Piece::DARK_MAN));
+        assert_eq!(game.mandatory_capturing_pieces(), vec![]);
+
+        assert!(game.jump(11, 15));
+        assert!(game.jump(30, 26));
+        assert!(game.jump(10, 14));
+
+        assert_eq!(game.team_on_turn(), Team::Dark);
+        assert_eq!(
+            game.mandatory_capturing_pieces(),
+            vec![(17, Piece::DARK_MAN)]
+        );
+
+        assert!(game.jump(17, 10));
+        assert!(game.table()[14].is_none());
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert_eq!(
+            game.mandatory_capturing_pieces(),
+            vec![(7, Piece::LIGHT_MAN)]
+        );
+
+        assert!(game.jump(7, 14));
+        assert!(game.table()[10].is_none());
+        assert!(game.jump(23, 18));
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert_eq!(
+            HashSet::<_>::from_iter(game.mandatory_capturing_pieces().into_iter()),
+            HashSet::<_>::from_iter(vec![(14, Piece::LIGHT_MAN), (15, Piece::LIGHT_MAN)])
+        );
+
+        assert!(game.jump(14, 23));
+        assert!(game.table()[18].is_none());
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert!(!game.jump(23, 26));
+        assert!(game.jump(23, 30));
+        assert!(game.table()[26].is_none());
+        assert_eq!(game.table()[30].unwrap().kind, PieceKind::King);
     }
 }
