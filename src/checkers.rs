@@ -1,11 +1,6 @@
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
-pub struct CheckersGame {
-    table: Table,
-    team_on_turn: Team,
-}
-
 const TABLE_ROWS: usize = 8;
 const TABLE_COLUMNS: usize = 8;
 const FIELDS_PER_ROW: usize = TABLE_COLUMNS / 2;
@@ -13,13 +8,13 @@ const TABLE_SIZE: usize = TABLE_ROWS * TABLE_COLUMNS / 2;
 
 pub type Table = [Option<Piece>; TABLE_SIZE];
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Piece {
     pub team: Team,
     pub kind: PieceKind,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PieceKind {
     Man,
     King,
@@ -47,7 +42,7 @@ impl Piece {
     };
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Team {
     Light,
     Dark,
@@ -62,11 +57,18 @@ impl Team {
     }
 }
 
+pub struct CheckersGame {
+    table: Table,
+    team_on_turn: Team,
+    mandatory_capturing_piece: Option<(usize, Piece)>,
+}
+
 impl CheckersGame {
     fn from_table(table: Table) -> Self {
         Self {
             table,
             team_on_turn: Team::Light,
+            mandatory_capturing_piece: None,
         }
     }
 
@@ -82,67 +84,122 @@ impl CheckersGame {
     }
 
     /// Returns the positions of those pieces which must capture on next move.
-    pub fn capturing_pieces(&self) -> Vec<usize> {
+    pub fn mandatory_capturing_pieces(&self) -> Vec<(usize, Piece)> {
+        match self.mandatory_capturing_piece {
+            Some(piece) => vec![piece],
+            None => self
+                .capturing_pieces()
+                .into_iter()
+                .filter(|(_, p)| p.team == self.team_on_turn)
+                .collect(),
+        }
+    }
+
+    fn capturing_pieces(&self) -> Vec<(usize, Piece)> {
         self.table
             .iter()
             .enumerate()
-            .map(|(pos, piece)| match piece {
-                Some(piece) => Self::advance_positions(pos, *piece)
-                    .into_iter()
-                    .filter(move |&i| match self.table[i] {
-                        Some(other_piece) => piece.team != other_piece.team,
-                        None => false,
-                    })
-                    .collect(),
-                None => vec![],
+            .filter_map(|(pos, piece)| {
+                piece.and_then(|piece| {
+                    if self.is_capturing_piece(pos) {
+                        Some((pos, piece))
+                    } else {
+                        None
+                    }
+                })
             })
-            .flatten()
             .collect()
     }
 
-    fn table_row(pos: usize) -> usize {
+    fn is_capturing_piece(&self, pos: usize) -> bool {
+        match self.table[pos] {
+            Some(piece) => Self::adjacent_positions(pos, piece)
+                .iter()
+                .any(|&other_position| match self.table[other_position] {
+                    Some(other_piece) => other_piece.team != piece.team,
+                    None => false,
+                }),
+            None => false,
+        }
+    }
+
+    fn table_row(pos: i32) -> i32 {
         pos / 4
     }
 
-    fn adjacent_table_positions(pos: usize) -> Vec<usize> {
-        let row = Self::table_row(pos) as i32;
+    fn adjacent_positions(pos: usize, piece: Piece) -> Vec<usize> {
+        let row = Self::table_row(pos as i32);
         let offset: i32 = if row % 2 == 0 {
             FIELDS_PER_ROW as i32
         } else {
             FIELDS_PER_ROW as i32 + 1
         };
 
-        [
-            pos as i32 - offset,
-            pos as i32 - offset + 1,
-            pos as i32 - offset + TABLE_COLUMNS as i32,
-            pos as i32 - offset + TABLE_COLUMNS as i32 + 1,
-        ]
-        .iter()
-        .filter(move |&p| {
-            0 <= *p
-                && *p < TABLE_SIZE as i32
-                && (Self::table_row(*p as usize) as i32 - row).abs() == 1
-        })
-        .map(|&p| p as usize)
-        .collect()
+        Self::valid_advance_positions(
+            [
+                pos as i32 - offset,
+                pos as i32 - offset + 1,
+                pos as i32 - offset + TABLE_COLUMNS as i32,
+                pos as i32 - offset + TABLE_COLUMNS as i32 + 1,
+            ]
+            .iter(),
+            pos,
+            piece,
+            1,
+        )
     }
 
-    fn advance_positions(pos: usize, piece: Piece) -> Vec<usize> {
-        match piece.kind {
-            PieceKind::King => Self::adjacent_table_positions(pos),
-            PieceKind::Man => Self::adjacent_table_positions(pos)
-                .into_iter()
-                .filter(|p| {
-                    let row_offset = match piece.team {
-                        Team::Light => 1,
-                        Team::Dark => -1,
-                    };
+    fn capture_positions(pos: usize, piece: Piece) -> Vec<usize> {
+        let row = Self::table_row(pos as i32);
+        let offset = (FIELDS_PER_ROW * 2) as i32;
 
-                    Self::table_row(*p) as i32 - Self::table_row(pos) as i32 == row_offset
-                })
-                .collect(),
-        }
+        Self::valid_advance_positions(
+            [
+                pos as i32 - offset - 1,
+                pos as i32 - offset + 1,
+                pos as i32 + offset - 1,
+                pos as i32 + offset + 1,
+            ]
+            .iter(),
+            pos,
+            piece,
+            2,
+        )
+    }
+
+    fn valid_advance_positions<'a>(
+        positions: impl Iterator<Item = &'a i32>,
+        pos: usize,
+        piece: Piece,
+        row_offset: usize,
+    ) -> Vec<usize> {
+        let row_offset = match piece.team {
+            Team::Light => row_offset as i32,
+            Team::Dark => -(row_offset as i32),
+        };
+
+        positions
+            .filter(|&p| {
+                if !Self::position_is_valid(*p) {
+                    false
+                } else {
+                    match piece.kind {
+                        PieceKind::King => {
+                            (Self::table_row(*p) - Self::table_row(pos as i32)).abs()
+                                == row_offset.abs()
+                        }
+                        PieceKind::Man => {
+                            Self::table_row(*p) - Self::table_row(pos as i32) == row_offset
+                        }
+                    }
+                }
+            })
+            .map(|&p| p as usize)
+            .collect()
+    }
+
+    fn position_is_valid(pos: i32) -> bool {
+        0 <= pos && pos < TABLE_SIZE as i32
     }
 
     /// Returns the team which is currently on turn.
@@ -157,9 +214,72 @@ impl CheckersGame {
     /// Jump piece at position from to position to.
     /// Returns true if the jump was successful, false otherwise.
     pub fn jump(&mut self, from: usize, to: usize) -> bool {
+        let piece = match self.table[from] {
+            Some(piece) => piece,
+            None => return false,
+        };
+
+        if piece.team != self.team_on_turn {
+            return false;
+        }
+
+        if !self.field_is_free(to) {
+            return false;
+        }
+
+        let mandatory_capturing_pieces: Vec<_> = self.mandatory_capturing_pieces();
+        let must_capture = !mandatory_capturing_pieces.is_empty();
+        if must_capture
+            && !mandatory_capturing_pieces
+                .into_iter()
+                .any(|(pos, _)| pos == from)
+        {
+            return false;
+        }
+
+        if !must_capture && Self::adjacent_positions(from, piece).contains(&to) {
+            self.do_jump(from, to);
+            self.mandatory_capturing_piece = None;
+            self.toggle_team_on_turn();
+            true
+        } else if Self::capture_positions(from, piece).contains(&to) {
+            let (captured_pos, captured_piece) = self.captured_piece(from, to);
+            match captured_piece {
+                Some(captured_piece) if captured_piece.team != piece.team => {
+                    self.do_jump(from, to);
+                    self.table[captured_pos] = None;
+                    if self.is_capturing_piece(to) {
+                        self.mandatory_capturing_piece = Some((to, piece));
+                    } else {
+                        self.mandatory_capturing_piece = None;
+                        self.toggle_team_on_turn();
+                    }
+                    true
+                }
+                _ => false,
+            }
+        } else {
+            false
+        }
+    }
+
+    fn do_jump(&mut self, from: usize, to: usize) {
         self.table[to] = self.table[from];
         self.table[from] = None;
-        true
+    }
+
+    fn captured_piece(&self, from: usize, to: usize) -> (usize, Option<Piece>) {
+        let captured_pos = if Self::table_row(from as i32) % 2 == 0 {
+            (from + to + 1) / 2
+        } else {
+            (from + to) / 2
+        };
+
+        (captured_pos, self.table[captured_pos])
+    }
+
+    fn field_is_free(&self, pos: usize) -> bool {
+        self.table[pos].is_none()
     }
 
     pub fn table(&self) -> &Table {
@@ -172,42 +292,48 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_adjacent_table_positions() {
-        assert_eq!(CheckersGame::adjacent_table_positions(0), vec![4, 5]);
-        assert_eq!(CheckersGame::adjacent_table_positions(12), vec![8, 16]);
-        assert_eq!(CheckersGame::adjacent_table_positions(11), vec![7, 15]);
-        assert_eq!(CheckersGame::adjacent_table_positions(27), vec![23, 31]);
-        assert_eq!(CheckersGame::adjacent_table_positions(28), vec![24]);
+    fn adjacent_positions() {
         assert_eq!(
-            CheckersGame::adjacent_table_positions(9),
-            vec![5, 6, 13, 14]
-        );
-    }
-
-    #[test]
-    fn advance_positions() {
-        assert_eq!(
-            CheckersGame::advance_positions(9, Piece::LIGHT_KING),
+            CheckersGame::adjacent_positions(9, Piece::LIGHT_KING),
             vec![5, 6, 13, 14]
         );
         assert_eq!(
-            CheckersGame::advance_positions(9, Piece::DARK_KING),
+            CheckersGame::adjacent_positions(9, Piece::DARK_KING),
             vec![5, 6, 13, 14]
         );
         assert_eq!(
-            CheckersGame::advance_positions(9, Piece::LIGHT_MAN),
+            CheckersGame::adjacent_positions(9, Piece::LIGHT_MAN),
             vec![13, 14]
         );
         assert_eq!(
-            CheckersGame::advance_positions(9, Piece::DARK_MAN),
+            CheckersGame::adjacent_positions(9, Piece::DARK_MAN),
             vec![5, 6]
+        );
+
+        assert_eq!(
+            CheckersGame::adjacent_positions(12, Piece::LIGHT_KING),
+            vec![8, 16]
+        );
+        assert_eq!(
+            CheckersGame::adjacent_positions(12, Piece::DARK_KING),
+            vec![8, 16]
+        );
+        assert_eq!(
+            CheckersGame::adjacent_positions(12, Piece::LIGHT_MAN),
+            vec![16]
+        );
+        assert_eq!(
+            CheckersGame::adjacent_positions(12, Piece::DARK_MAN),
+            vec![8]
         );
     }
 
     #[test]
     fn capturing_pieces() {
+        let no_capturing_pieces = Vec::<(usize, Piece)>::new();
+
         let game = CheckersGame::from_table([None; TABLE_SIZE]);
-        assert_eq!(game.capturing_pieces(), Vec::<usize>::new());
+        assert_eq!(game.capturing_pieces(), no_capturing_pieces);
 
         let mut table = [None; TABLE_SIZE];
         table[5] = Some(Piece::LIGHT_MAN);
@@ -217,7 +343,7 @@ mod tests {
         table[14] = Some(Piece::LIGHT_MAN);
         table[4] = Some(Piece::DARK_MAN);
         let game = CheckersGame::from_table(table);
-        assert_eq!(game.capturing_pieces(), Vec::<usize>::new());
+        assert_eq!(game.capturing_pieces(), no_capturing_pieces);
 
         let mut table = [None; TABLE_SIZE];
         table[5] = Some(Piece::DARK_MAN);
@@ -227,9 +353,17 @@ mod tests {
         table[14] = Some(Piece::LIGHT_MAN);
         table[4] = Some(Piece::DARK_MAN);
         let mut game = CheckersGame::from_table(table);
-        assert_eq!(game.capturing_pieces(), Vec::<usize>::new());
-        game.toggle_team_on_turn();
-        assert_eq!(game.capturing_pieces(), Vec::<usize>::new());
+        assert_eq!(game.capturing_pieces(), no_capturing_pieces);
+
+        let mut table = [None; TABLE_SIZE];
+        table[5] = Some(Piece::DARK_KING);
+        table[6] = Some(Piece::LIGHT_MAN);
+        table[9] = Some(Piece::LIGHT_MAN);
+        table[13] = Some(Piece::LIGHT_MAN);
+        table[14] = Some(Piece::LIGHT_MAN);
+        table[4] = Some(Piece::DARK_MAN);
+        let mut game = CheckersGame::from_table(table);
+        assert_eq!(game.capturing_pieces(), vec![(5, Piece::DARK_KING)]);
 
         let mut table = [None; TABLE_SIZE];
         table[5] = Some(Piece::LIGHT_MAN);
@@ -241,7 +375,7 @@ mod tests {
         let game = CheckersGame::from_table(table);
         assert_eq!(
             HashSet::<_>::from_iter(game.capturing_pieces().into_iter()),
-            HashSet::<_>::from_iter(vec![9, 14].into_iter())
+            HashSet::<_>::from_iter(vec![(9, Piece::LIGHT_MAN), (14, Piece::DARK_MAN)].into_iter())
         );
 
         let mut table = [None; TABLE_SIZE];
@@ -255,7 +389,49 @@ mod tests {
         let game = CheckersGame::from_table(table);
         assert_eq!(
             HashSet::<_>::from_iter(game.capturing_pieces().into_iter()),
-            HashSet::<_>::from_iter(vec![9, 14, 5, 8].into_iter())
+            HashSet::<_>::from_iter(
+                vec![
+                    (9, Piece::LIGHT_MAN),
+                    (14, Piece::DARK_MAN),
+                    (5, Piece::LIGHT_MAN),
+                    (8, Piece::DARK_MAN)
+                ]
+                .into_iter()
+            )
+        );
+    }
+
+    #[test]
+    fn game() {
+        let mut game = CheckersGame::new();
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert!(!game.jump(20, 16));
+        assert!(!game.jump(8, 17));
+        assert!(game.jump(8, 13));
+        assert_eq!(game.team_on_turn(), Team::Dark);
+        assert_eq!(
+            game.mandatory_capturing_pieces(),
+            Vec::<(usize, Piece)>::new()
+        );
+
+        assert!(!game.jump(8, 13));
+        assert!(!game.jump(25, 22));
+        assert!(game.jump(22, 17));
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert_eq!(
+            game.mandatory_capturing_pieces(),
+            vec![(13, Piece::LIGHT_MAN)]
+        );
+
+        assert!(!game.jump(5, 9));
+        assert!(!game.jump(9, 14));
+        assert!(!game.jump(14, 18));
+        assert!(!game.jump(13, 16));
+        assert!(game.jump(13, 22));
+        assert_eq!(game.team_on_turn(), Team::Dark);
+        assert_eq!(
+            HashSet::<_>::from_iter(game.mandatory_capturing_pieces().into_iter()),
+            HashSet::<_>::from_iter(vec![(25, Piece::DARK_MAN), (26, Piece::DARK_MAN)].into_iter())
         );
     }
 }
