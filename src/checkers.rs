@@ -310,6 +310,26 @@ impl CheckersGame {
     pub fn table(&self) -> &Table {
         &self.table
     }
+
+    pub fn winner(&self) -> Option<Team> {
+        if self.remaining_pieces(Team::Light) == 0 {
+            Some(Team::Dark)
+        } else if self.remaining_pieces(Team::Dark) == 0 {
+            Some(Team::Light)
+        } else {
+            None
+        }
+    }
+
+    fn remaining_pieces(&self, team: Team) -> usize {
+        self.table
+            .iter()
+            .filter(|piece| match piece {
+                Some(piece) => piece.team == team,
+                None => false,
+            })
+            .count()
+    }
 }
 
 #[cfg(test)]
@@ -521,9 +541,29 @@ mod tests {
         assert!(game.jump(14, 23));
         assert!(game.table()[18].is_none());
         assert_eq!(game.team_on_turn(), Team::Light);
+
         assert!(!game.jump(23, 26));
         assert!(game.jump(23, 30));
         assert!(game.table()[26].is_none());
         assert_eq!(game.table()[30].unwrap().kind, PieceKind::King);
+        assert_eq!(game.team_on_turn(), Team::Dark);
+
+        assert!(game.jump(21, 16));
+        assert_eq!(
+            game.mandatory_capturing_pieces(),
+            vec![(30, Piece::LIGHT_KING)]
+        );
+        assert!(game.jump(30, 21));
+        assert!(game.table()[25].is_none());
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert_eq!(
+            game.mandatory_capturing_pieces(),
+            vec![(21, Piece::LIGHT_KING)]
+        );
+        assert!(!game.jump(21, 28));
+        assert!(game.jump(21, 12));
+        assert_eq!(game.team_on_turn(), Team::Dark);
+
+        assert!(game.winner().is_none());
     }
 }
