@@ -1,4 +1,4 @@
-use crate::game_master::{GameMasterAddr, PlayerID};
+use crate::game_master::{GameFound, GameID, GameMasterAddr, Matchup, PlayerID};
 use actix::prelude::*;
 use actix_web::{web, Responder};
 use actix_web_actors::ws;
@@ -67,10 +67,12 @@ impl WsSession {
     pub fn handle_valid_message(&mut self, msg: ClientMessage, ctx: &mut <Self as Actor>::Context) {
         match msg {
             ClientMessage::Register => self.handle_registration(ctx),
+            ClientMessage::Matchup => self.handle_matchup(ctx),
+            ClientMessage::Jump { .. } => unimplemented!(),
         }
     }
 
-    pub fn handle_registration(&mut self, ctx: &mut <Self as Actor>::Context) {
+    fn handle_registration(&mut self, ctx: &mut <Self as Actor>::Context) {
         if self.player_id.is_some() {
             return;
         }
@@ -80,16 +82,44 @@ impl WsSession {
         ctx.text(response);
         self.player_id = Some(player_id);
     }
+
+    fn handle_matchup(&mut self, ctx: &mut <Self as Actor>::Context) {
+        if self.player_id.is_none() {
+            return;
+        }
+
+        self.game_master.do_send(Matchup(ctx.address().recipient()));
+    }
+}
+
+impl Handler<GameFound> for WsSession {
+    type Result = ();
+
+    fn handle(&mut self, GameFound(game_id): GameFound, ctx: &mut Self::Context) -> Self::Result {
+        ctx.text(serde_json::to_string(&ServerMessage::Matched { game_id }).unwrap());
+    }
 }
 
 #[derive(Deserialize)]
 enum ClientMessage {
     Register,
+    Matchup,
+    Jump { from: usize, to: usize },
 }
 
 #[derive(Serialize)]
 enum ServerMessage {
-    Registered { player_id: PlayerID },
+    Registered {
+        player_id: PlayerID,
+    },
+    Matched {
+        game_id: GameID,
+    },
+    Jumped {
+        from: usize,
+        to: usize,
+        consumed: Option<usize>,
+    },
 }
 
 pub fn config_with(

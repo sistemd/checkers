@@ -47,11 +47,11 @@ pub type GameMasterAddr = Addr<GameMaster>;
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct Matchup(Recipient<GameFound>);
+pub struct Matchup(pub Recipient<GameFound>);
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct GameFound(GameID);
+pub struct GameFound(pub GameID);
 
 impl GameMaster {
     pub fn new() -> Self {

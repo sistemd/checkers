@@ -237,16 +237,19 @@ impl CheckersGame {
         }
 
         if !must_capture && Self::adjacent_positions(from, piece).contains(&to) {
-            self.do_jump(from, to);
+            let piece = Self::promote_king(to, piece);
+            self.table[to] = Some(piece);
+            self.table[from] = None;
             self.mandatory_capturing_piece = None;
             self.toggle_team_on_turn();
-            self.promote_kings();
             true
         } else if Self::capture_positions(from, piece).contains(&to) {
             let (captured_pos, captured_piece) = self.captured_piece(from, to);
             match captured_piece {
                 Some(captured_piece) if captured_piece.team != piece.team => {
-                    self.do_jump(from, to);
+                    let piece = Self::promote_king(to, piece);
+                    self.table[to] = Some(piece);
+                    self.table[from] = None;
                     self.table[captured_pos] = None;
                     if self.is_capturing_piece(to, piece) {
                         self.mandatory_capturing_piece = Some((to, piece));
@@ -254,7 +257,6 @@ impl CheckersGame {
                         self.mandatory_capturing_piece = None;
                         self.toggle_team_on_turn();
                     }
-                    self.promote_kings();
                     true
                 }
                 _ => false,
@@ -262,11 +264,6 @@ impl CheckersGame {
         } else {
             false
         }
-    }
-
-    fn do_jump(&mut self, from: usize, to: usize) {
-        self.table[to] = self.table[from];
-        self.table[from] = None;
     }
 
     fn captured_piece(&self, from: usize, to: usize) -> (usize, Option<Piece>) {
@@ -279,28 +276,12 @@ impl CheckersGame {
         (captured_pos, self.table[captured_pos])
     }
 
-    fn promote_kings(&mut self) {
-        let promote_in_row = |row: &mut [Option<Piece>], team| {
-            for piece in row {
-                match piece {
-                    Some(piece) if piece.kind == PieceKind::Man && piece.team == team => {
-                        piece.kind = PieceKind::King
-                    }
-                    _ => {}
-                }
-            }
-        };
-
-        promote_in_row(self.top_row(), Team::Dark);
-        promote_in_row(self.bottom_row(), Team::Light);
-    }
-
-    fn top_row(&mut self) -> &mut [Option<Piece>] {
-        &mut self.table[..4]
-    }
-
-    fn bottom_row(&mut self) -> &mut [Option<Piece>] {
-        &mut self.table[28..]
+    fn promote_king(pos: usize, piece: Piece) -> Piece {
+        match piece {
+            Piece::LIGHT_MAN if 28 <= pos && pos < 32 => Piece::LIGHT_KING,
+            Piece::DARK_MAN if pos < 4 => Piece::DARK_KING,
+            _ => piece,
+        }
     }
 
     fn field_is_free(&self, pos: usize) -> bool {
@@ -565,5 +546,37 @@ mod tests {
         assert_eq!(game.team_on_turn(), Team::Dark);
 
         assert!(game.winner().is_none());
+
+        let mut table = [None; TABLE_SIZE];
+        table[16] = Some(Piece::DARK_MAN);
+        table[25] = Some(Piece::DARK_MAN);
+        table[26] = Some(Piece::DARK_MAN);
+        table[12] = Some(Piece::LIGHT_MAN);
+        let mut game = CheckersGame::from_table(table);
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert_eq!(
+            game.mandatory_capturing_pieces(),
+            vec![(12, Piece::LIGHT_MAN)]
+        );
+        assert!(game.jump(12, 21));
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert!(game.table()[16].is_none());
+        assert_eq!(
+            game.mandatory_capturing_pieces(),
+            vec![(21, Piece::LIGHT_MAN)]
+        );
+        assert!(game.jump(21, 30));
+        assert_eq!(game.team_on_turn(), Team::Light);
+        assert!(game.table()[25].is_none());
+        assert!(game.table()[21].is_none());
+        assert_eq!(
+            game.mandatory_capturing_pieces(),
+            vec![(30, Piece::LIGHT_KING)]
+        );
+        assert!(game.winner().is_none());
+        assert!(!game.jump(30, 25));
+        assert!(!game.jump(30, 21));
+        assert!(game.jump(30, 23));
+        assert_eq!(game.winner(), Some(Team::Light));
     }
 }
