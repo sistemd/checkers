@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-use std::iter::FromIterator;
+use serde::Serialize;
 
 const TABLE_ROWS: usize = 8;
 const TABLE_COLUMNS: usize = 8;
@@ -8,13 +7,13 @@ const TABLE_SIZE: usize = TABLE_ROWS * TABLE_COLUMNS / 2;
 
 pub type Table = [Option<Piece>; TABLE_SIZE];
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize)]
 pub struct Piece {
     pub team: Team,
     pub kind: PieceKind,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize)]
 pub enum PieceKind {
     Man,
     King,
@@ -42,7 +41,7 @@ impl Piece {
     };
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize)]
 pub enum Team {
     Light,
     Dark,
@@ -316,6 +315,8 @@ impl CheckersGame {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
+    use std::iter::FromIterator;
 
     #[test]
     fn adjacent_positions() {
