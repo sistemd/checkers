@@ -7,6 +7,7 @@ export default function App() {
     let [websocket, setWebsocket] = useState<WebSocket>();
     const [gameId, setGameId] = useState<number>();
     const [team, setTeam] = useState<Team>("Light");
+    const [winner, setWinner] = useState<Team | null>(null);
     const [table, setTable] = useState<PiecesTable>([]);
     const [teamOnTurn, setTeamOnTurn] = useState<Team>("Light");
 
@@ -45,6 +46,7 @@ export default function App() {
             } else if (data["GameUpdate"] !== undefined) {
                 setTable(data["GameUpdate"]["table"]);
                 setTeamOnTurn(data["GameUpdate"]["team_on_turn"]);
+                setWinner(data["GameUpdate"]["winner"]);
             } else if (data["BadJump"] !== undefined) {
                 console.log("Bad jump!");
             }
@@ -68,12 +70,15 @@ export default function App() {
 
     return (
         <div>
-            <Board onJumpSelected={sendJump} table={table} />
+            <Board onJumpSelected={sendJump} table={table} team={team} />
 
-            <p>Player ID: {playerId}</p>
-            <p>Game ID: {gameId}</p>
-            <p>Team: {team}</p>
-            <p>Team On Turn: {teamOnTurn}</p>
+            <p>
+                Player ID - Game ID: {playerId} - {gameId}
+            </p>
+            <p>
+                Team - On Turn: {team} - {teamOnTurn}
+            </p>
+            <p>Winner: {winner}</p>
         </div>
     );
 }

@@ -105,6 +105,7 @@ impl OngoingGame {
             .do_send(GameUpdate {
                 table: *self.game.table(),
                 team_on_turn: self.game.team_on_turn(),
+                winner: self.game.winner(),
             })
             .unwrap();
         self.dark_player
@@ -112,6 +113,7 @@ impl OngoingGame {
             .do_send(GameUpdate {
                 table: *self.game.table(),
                 team_on_turn: self.game.team_on_turn(),
+                winner: self.game.winner(),
             })
             .unwrap();
     }
@@ -149,6 +151,7 @@ pub struct Jump {
 pub struct GameUpdate {
     pub table: Table,
     pub team_on_turn: Team,
+    pub winner: Option<Team>,
 }
 
 #[derive(Message)]

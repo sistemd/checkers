@@ -5,6 +5,7 @@ import Piece from "./Piece";
 export interface PiecesProps {
     onPieceClicked(index: number): void;
     table: PiecesTable;
+    selectedIndex?: number;
 }
 
 export default function Pieces(props: PiecesProps) {
@@ -14,6 +15,8 @@ export default function Pieces(props: PiecesProps) {
             key={index}
             piece={piece}
             index={index}
+            stroke-width="15"
+            selected={index === props.selectedIndex}
         />
     ));
 

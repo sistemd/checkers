@@ -1,33 +1,42 @@
 import React, { useState } from "react";
 import Fields, { boardWidth, boardHeight } from "./Fields";
-import { PiecesTable } from "./checkers";
+import { PiecesTable, Team } from "./checkers";
 import Pieces from "./Pieces";
 
 export interface BoardProps {
     onJumpSelected(start: number, end: number): void;
     table: PiecesTable;
+    team: Team;
 }
 
 export default function Board(props: BoardProps) {
-    const [start, setStart] = useState<number>();
+    const [selectedIndex, setSelectedIndex] = useState<number>();
 
     function onFieldClicked(fieldIndex: number) {
         console.log(fieldIndex);
-        if (start === undefined) {
-            setStart(fieldIndex);
+        if (selectedIndex === undefined) {
+            setSelectedIndex(fieldIndex);
         } else {
-            props.onJumpSelected(start, fieldIndex);
-            setStart(undefined);
+            props.onJumpSelected(selectedIndex, fieldIndex);
+            setSelectedIndex(undefined);
         }
     }
+
+    const transform = props.team === "Light" ? "scale(1, -1)" : "";
+    console.log(`transform ${transform}`);
 
     return (
         <svg
             viewBox={`0 0 ${boardWidth} ${boardHeight}`}
             style={{ width: boardWidth }}
+            transform={transform}
         >
             <Fields onFieldClicked={onFieldClicked} />
-            <Pieces onPieceClicked={onFieldClicked} table={props.table} />
+            <Pieces
+                selectedIndex={selectedIndex}
+                onPieceClicked={onFieldClicked}
+                table={props.table}
+            />
         </svg>
     );
 }

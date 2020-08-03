@@ -142,6 +142,7 @@ impl Handler<GameUpdate> for WsSession {
             serde_json::to_string(&ServerMessage::GameUpdate {
                 table: msg.table,
                 team_on_turn: msg.team_on_turn,
+                winner: msg.winner,
             })
             .unwrap(),
         )
@@ -168,6 +169,7 @@ enum ServerMessage {
     GameUpdate {
         table: checkers::Table,
         team_on_turn: checkers::Team,
+        winner: Option<checkers::Team>,
     },
     BadJump,
 }

@@ -6,6 +6,7 @@ export interface PieceProps {
     onClick(): void;
     piece: CheckersPiece | null;
     index: number;
+    selected: boolean;
 }
 
 export default function Piece(props: PieceProps) {
@@ -16,13 +17,18 @@ export default function Piece(props: PieceProps) {
     const column =
         row % 2 == 0 ? (props.index % 4) * 2 + 1 : (props.index % 4) * 2;
     const fill = props.piece.team === "Light" ? "red" : "blue";
+    const stroke = props.selected ? "black" : "";
     return (
         <circle
             cx={column * fieldWidth + fieldWidth / 2}
             cy={row * fieldHeight + fieldHeight / 2}
             r={radius}
             fill={fill}
+            stroke={stroke}
+            stroke-width="5"
             onClick={props.onClick}
-        ></circle>
+        >
+            <i className="fas fa-crown"></i>
+        </circle>
     );
 }
