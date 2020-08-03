@@ -1,8 +1,7 @@
 import React from "react";
 import { Piece as CheckersPiece } from "./checkers";
 import { fieldWidth, fieldHeight } from "./Field";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCrown, faCrow } from "@fortawesome/free-solid-svg-icons";
+import Crown from "./Crown";
 
 const lightColor = "red";
 const darkColor = "blue";
@@ -13,7 +12,7 @@ export interface PieceProps {
     piece: CheckersPiece | null;
     index: number;
     selected: boolean;
-    flip?: boolean;
+    flipCrown?: boolean;
 }
 
 export default function Piece(props: PieceProps) {
@@ -25,9 +24,6 @@ export default function Piece(props: PieceProps) {
         row % 2 == 0 ? (props.index % 4) * 2 + 1 : (props.index % 4) * 2;
     const fill = props.piece.team === "Light" ? lightColor : darkColor;
     const stroke = props.selected ? selectedColor : "";
-
-    const crownWidth = fieldWidth - 5;
-    const crownHeight = fieldHeight;
 
     return (
         <>
@@ -41,24 +37,12 @@ export default function Piece(props: PieceProps) {
                 onClick={props.onClick}
             />
             {props.piece.kind === "King" && (
-                <svg
-                    transform={
-                        `translate(` +
-                        `${column * fieldWidth}, ${row * fieldHeight})` +
-                        (props.flip
-                            ? `scale(1, -1) translate(0, ${-fieldHeight})`
-                            : "") +
-                        `scale(` +
-                        `${crownWidth / 512}, ${crownHeight / 512}) ` +
-                        "scale(0.7)"
-                    }
-                >
-                    <FontAwesomeIcon
-                        icon={faCrown}
-                        color="grey"
-                        style={{ width: fieldWidth, height: fieldHeight }}
-                    />
-                </svg>
+                <Crown
+                    row={row}
+                    column={column}
+                    flip={props.flipCrown}
+                    onClick={props.onClick}
+                />
             )}
         </>
     );

@@ -23,7 +23,6 @@ export default function Board(props: BoardProps) {
     }
 
     const transform = props.team === "Light" ? "scale(1, -1)" : "";
-    console.log(`transform ${transform}`);
 
     return (
         <svg

@@ -17,7 +17,7 @@ export default function Pieces(props: PiecesProps) {
             piece={piece}
             index={index}
             selected={index === props.selectedIndex}
-            flip={props.flipCrowns}
+            flipCrown={props.flipCrowns}
         />
     ));
 
