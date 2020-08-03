@@ -36,6 +36,7 @@ export default function Board(props: BoardProps) {
                 selectedIndex={selectedIndex}
                 onPieceClicked={onFieldClicked}
                 table={props.table}
+                flipCrowns={props.team === "Light"}
             />
         </svg>
     );

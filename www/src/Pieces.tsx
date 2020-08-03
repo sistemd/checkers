@@ -6,6 +6,7 @@ export interface PiecesProps {
     onPieceClicked(index: number): void;
     table: PiecesTable;
     selectedIndex?: number;
+    flipCrowns?: boolean;
 }
 
 export default function Pieces(props: PiecesProps) {
@@ -15,8 +16,8 @@ export default function Pieces(props: PiecesProps) {
             key={index}
             piece={piece}
             index={index}
-            stroke-width="15"
             selected={index === props.selectedIndex}
+            flip={props.flipCrowns}
         />
     ));
 
