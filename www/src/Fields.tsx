@@ -1,6 +1,7 @@
 import React from "react";
 import Field, { fieldWidth, fieldHeight } from "./Field";
 import _ from "lodash";
+import { darkFieldColor, lightFieldColor } from "./colors";
 
 export const boardSize = 8;
 export const boardWidth = boardSize * fieldWidth;
@@ -18,13 +19,20 @@ export default function Fields(props: FieldsProps) {
             (i % 2 === 0 && row % 2 === 0) || (i % 2 === 1 && row % 2 === 1);
 
         if (isDark) {
-            return <Field key={i} fill="black" row={row} column={column} />;
+            return (
+                <Field
+                    key={i}
+                    fill={darkFieldColor}
+                    row={row}
+                    column={column}
+                />
+            );
         } else {
             const fieldIndex = row % 2 === 0 ? (i - 1) / 2 : i / 2;
             return (
                 <Field
                     key={i}
-                    fill="white"
+                    fill={lightFieldColor}
                     row={row}
                     column={column}
                     onClick={() => props.onFieldClicked(fieldIndex)}

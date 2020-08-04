@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Board from "../Board";
 import { boardSize } from "../Fields";
 import _ from "lodash";
@@ -25,6 +25,18 @@ export const boardForDarkPlayer = () => (
         onJumpSelected={(start, end) => action(`jumpSelected ${start} ${end}`)}
     />
 );
+
+export function movingAllPiecesFreely() {
+    const [table, setTable] = useState(samplePiecesTable());
+
+    function onJumpSelected(start: number, end: number) {
+        table[end] = table[start];
+        table[start] = null;
+        setTable(table);
+    }
+
+    return <Board table={table} team="Dark" onJumpSelected={onJumpSelected} />;
+}
 
 function samplePiecesTable() {
     const table: PiecesTable = _.range(boardSize / 2).map(() => null);

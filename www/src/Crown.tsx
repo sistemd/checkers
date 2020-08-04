@@ -3,6 +3,7 @@ import { boardWidth, boardHeight } from "./Fields";
 import { fieldWidth, fieldHeight } from "./Field";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCrown } from "@fortawesome/free-solid-svg-icons";
+import "./animations.css";
 
 export interface CrownProps {
     onClick?(): void;
@@ -28,6 +29,7 @@ export default function Crown(props: CrownProps) {
 
     return (
         <svg
+            className="animate-position"
             onClick={props.onClick}
             style={{
                 transformOrigin: "center",
