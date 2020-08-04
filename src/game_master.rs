@@ -1,4 +1,4 @@
-use crate::checkers::{CheckersGame, Table, Team};
+use crate::checkers::{CheckersGame, JumpResult, Table, Team};
 use actix::prelude::*;
 use rand;
 use serde::{Deserialize, Serialize};
@@ -59,16 +59,20 @@ struct OngoingGame {
 
 struct Player {
     id: PlayerID,
-    update_recipient: Recipient<GameUpdate>,
+    game_state_recipient: Recipient<GameState>,
+    game_update_recipient: Recipient<GameUpdate>,
     bad_jump_recipient: Recipient<BadJump>,
 }
 
 impl OngoingGame {
     fn jump(&mut self, player_id: PlayerID, from: usize, to: usize) {
-        if self.is_on_turn(player_id) && self.game.jump(from, to) {
-            self.send_updates();
-        } else if let Some(r) = self.bad_jump_recipient(player_id) {
-            r.do_send(BadJump).unwrap();
+        if self.is_on_turn(player_id) {
+            match self.game.jump(from, to) {
+                JumpResult::Good { captured_piece } => self.send_updates(from, to, captured_piece),
+                JumpResult::Bad => self.send_bad_jump(player_id),
+            }
+        } else {
+            self.send_bad_jump(player_id)
         }
     }
 
@@ -99,23 +103,39 @@ impl OngoingGame {
         }
     }
 
-    fn send_updates(&self) {
+    fn send_game_state(&self) {
+        let msg = GameState {
+            table: *self.game.table(),
+            team_on_turn: self.game.team_on_turn(),
+            winner: self.game.winner(),
+        };
         self.light_player
-            .update_recipient
-            .do_send(GameUpdate {
-                table: *self.game.table(),
-                team_on_turn: self.game.team_on_turn(),
-                winner: self.game.winner(),
-            })
+            .game_state_recipient
+            .do_send(msg.clone())
             .unwrap();
-        self.dark_player
-            .update_recipient
-            .do_send(GameUpdate {
-                table: *self.game.table(),
-                team_on_turn: self.game.team_on_turn(),
-                winner: self.game.winner(),
-            })
+        self.dark_player.game_state_recipient.do_send(msg).unwrap();
+    }
+
+    fn send_updates(&self, from: usize, to: usize, captured_piece: Option<usize>) {
+        let msg = GameUpdate {
+            from,
+            to,
+            captured_piece,
+            team_on_turn: self.game.team_on_turn(),
+            winner: self.game.winner(),
+        };
+
+        self.light_player
+            .game_update_recipient
+            .do_send(msg.clone())
             .unwrap();
+        self.dark_player.game_update_recipient.do_send(msg).unwrap();
+    }
+
+    fn send_bad_jump(&self, player_id: PlayerID) {
+        if let Some(r) = self.bad_jump_recipient(player_id) {
+            r.do_send(BadJump).unwrap();
+        }
     }
 }
 
@@ -125,17 +145,18 @@ pub type GameMasterAddr = Addr<GameMaster>;
 #[rtype(result = "()")]
 pub struct Matchup {
     pub game_found_recipient: Recipient<GameFound>,
-    pub update_recipient: Recipient<GameUpdate>,
+    pub game_update_recipient: Recipient<GameUpdate>,
+    pub game_state_recipient: Recipient<GameState>,
     pub bad_jump_recipient: Recipient<BadJump>,
     pub player_id: PlayerID,
 }
 
-#[derive(Message)]
+#[derive(Message, Serialize)]
 #[rtype(result = "()")]
 pub struct GameFound {
-    pub game_id: GameID,
-    pub light_player: PlayerID,
-    pub dark_player: PlayerID,
+    game_id: GameID,
+    light_player: PlayerID,
+    dark_player: PlayerID,
 }
 
 #[derive(Message)]
@@ -146,12 +167,22 @@ pub struct Jump {
     pub to: usize,
 }
 
-#[derive(Message)]
+#[derive(Message, Clone, Serialize)]
+#[rtype(result = "()")]
+pub struct GameState {
+    table: Table,
+    team_on_turn: Team,
+    winner: Option<Team>,
+}
+
+#[derive(Message, Clone, Serialize)]
 #[rtype(result = "()")]
 pub struct GameUpdate {
-    pub table: Table,
-    pub team_on_turn: Team,
-    pub winner: Option<Team>,
+    from: usize,
+    to: usize,
+    captured_piece: Option<usize>,
+    team_on_turn: Team,
+    winner: Option<Team>,
 }
 
 #[derive(Message)]
@@ -180,18 +211,20 @@ impl Handler<Matchup> for GameMaster {
             let game = OngoingGame {
                 light_player: Player {
                     id: light.player_id,
-                    update_recipient: light.update_recipient,
+                    game_state_recipient: light.game_state_recipient,
+                    game_update_recipient: light.game_update_recipient,
                     bad_jump_recipient: light.bad_jump_recipient,
                 },
                 dark_player: Player {
                     id: dark.player_id,
-                    update_recipient: dark.update_recipient,
+                    game_state_recipient: dark.game_state_recipient,
+                    game_update_recipient: dark.game_update_recipient,
                     bad_jump_recipient: dark.bad_jump_recipient,
                 },
                 game: CheckersGame::new(),
             };
 
-            game.send_updates();
+            game.send_game_state();
 
             self.games.insert(game_id, game);
             self.players_in_games.insert(light.player_id, game_id);

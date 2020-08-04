@@ -40,9 +40,12 @@ export function movingAllPiecesFreely() {
 
 function samplePiecesTable() {
     const table: PiecesTable = _.range(boardSize / 2).map(() => null);
-    table[0] = table[1] = table[5] = { kind: "Man", team: "Light" };
-    table[6] = { kind: "King", team: "Dark" };
-    table[25] = table[26] = { kind: "Man", team: "Dark" };
-    table[15] = { kind: "King", team: "Light" };
+    table[0] = { kind: "Man", team: "Light", key: 0 };
+    table[1] = { kind: "Man", team: "Light", key: 1 };
+    table[5] = { kind: "Man", team: "Light", key: 2 };
+    table[6] = { kind: "King", team: "Dark", key: 3 };
+    table[25] = { kind: "Man", team: "Dark", key: 4 };
+    table[26] = { kind: "Man", team: "Dark", key: 5 };
+    table[15] = { kind: "King", team: "Light", key: 6 };
     return table;
 }

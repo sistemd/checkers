@@ -10,16 +10,19 @@ export interface PiecesProps {
 }
 
 export default function Pieces(props: PiecesProps) {
-    const pieces = props.table.map((piece, index) => (
-        <Piece
-            onClick={() => props.onPieceClicked(index)}
-            key={index}
-            piece={piece}
-            index={index}
-            selected={index === props.selectedIndex}
-            flipCrown={props.flipCrowns}
-        />
-    ));
+    console.log(props.table);
+    const pieces = props.table.map((piece, index) =>
+        piece === null ? null : (
+            <Piece
+                onClick={() => props.onPieceClicked(index)}
+                key={piece.key}
+                piece={piece}
+                index={index}
+                selected={index === props.selectedIndex}
+                flipCrown={props.flipCrowns}
+            />
+        )
+    );
 
     return <>{pieces}</>;
 }

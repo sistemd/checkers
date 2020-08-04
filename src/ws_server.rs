@@ -1,7 +1,6 @@
-use crate::checkers;
 use crate::game_master;
 use crate::game_master::{
-    BadJump, GameFound, GameID, GameMasterAddr, GameUpdate, Matchup, PlayerID,
+    BadJump, GameFound, GameMasterAddr, GameState, GameUpdate, Matchup, PlayerID,
 };
 use actix::prelude::*;
 use actix_web::{web, Responder};
@@ -91,7 +90,8 @@ impl WsSession {
         match self.player_id {
             Some(player_id) => self.game_master.do_send(Matchup {
                 game_found_recipient: ctx.address().recipient(),
-                update_recipient: ctx.address().recipient(),
+                game_state_recipient: ctx.address().recipient(),
+                game_update_recipient: ctx.address().recipient(),
                 bad_jump_recipient: ctx.address().recipient(),
                 player_id,
             }),
@@ -115,14 +115,7 @@ impl Handler<GameFound> for WsSession {
     type Result = ();
 
     fn handle(&mut self, msg: GameFound, ctx: &mut Self::Context) -> Self::Result {
-        ctx.text(
-            serde_json::to_string(&ServerMessage::Matched {
-                game_id: msg.game_id,
-                light_player: msg.light_player,
-                dark_player: msg.dark_player,
-            })
-            .unwrap(),
-        );
+        ctx.text(serde_json::to_string(&ServerMessage::GameFound(msg)).unwrap());
     }
 }
 
@@ -134,18 +127,19 @@ impl Handler<BadJump> for WsSession {
     }
 }
 
+impl Handler<GameState> for WsSession {
+    type Result = ();
+
+    fn handle(&mut self, msg: GameState, ctx: &mut Self::Context) -> Self::Result {
+        ctx.text(serde_json::to_string(&ServerMessage::GameState(msg)).unwrap())
+    }
+}
+
 impl Handler<GameUpdate> for WsSession {
     type Result = ();
 
     fn handle(&mut self, msg: GameUpdate, ctx: &mut Self::Context) -> Self::Result {
-        ctx.text(
-            serde_json::to_string(&ServerMessage::GameUpdate {
-                table: msg.table,
-                team_on_turn: msg.team_on_turn,
-                winner: msg.winner,
-            })
-            .unwrap(),
-        )
+        ctx.text(serde_json::to_string(&ServerMessage::GameUpdate(msg)).unwrap())
     }
 }
 
@@ -158,19 +152,10 @@ enum ClientMessage {
 
 #[derive(Serialize)]
 enum ServerMessage {
-    Registered {
-        player_id: PlayerID,
-    },
-    Matched {
-        game_id: GameID,
-        light_player: PlayerID,
-        dark_player: PlayerID,
-    },
-    GameUpdate {
-        table: checkers::Table,
-        team_on_turn: checkers::Team,
-        winner: Option<checkers::Team>,
-    },
+    Registered { player_id: PlayerID },
+    GameFound(GameFound),
+    GameState(GameState),
+    GameUpdate(GameUpdate),
     BadJump,
 }
 

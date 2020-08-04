@@ -4,16 +4,14 @@ import { PiecesTable, Team } from "./checkers";
 
 export default function App() {
     let [playerId, setPlayerId] = useState<number>();
-    let [websocket, setWebsocket] = useState<WebSocket>();
+    const [websocket, setWebsocket] = useState<WebSocket>();
     const [gameId, setGameId] = useState<number>();
     const [team, setTeam] = useState<Team>("Light");
     const [winner, setWinner] = useState<Team | null>(null);
-    const [table, setTable] = useState<PiecesTable>([]);
+    let [table, setTable] = useState<PiecesTable>([]);
     const [teamOnTurn, setTeamOnTurn] = useState<Team>("Light");
 
-    useEffect(setupWebsocket, []);
-
-    function setupWebsocket() {
+    useEffect(() => {
         const websocket = new WebSocket("ws://localhost:8080/ws");
         setWebsocket(websocket);
 
@@ -36,27 +34,41 @@ export default function App() {
                         Matchup: null,
                     })
                 );
-            } else if (data["Matched"] !== undefined) {
-                setGameId(data["Matched"]["game_id"]);
+            } else if (data["GameFound"] !== undefined) {
+                setGameId(data["GameFound"]["game_id"]);
                 setTeam(
-                    data["Matched"]["light_player"] === playerId
+                    data["GameFound"]["light_player"] === playerId
                         ? "Light"
                         : "Dark"
                 );
+            } else if (data["GameState"] !== undefined) {
+                table = data["GameState"][
+                    "table"
+                ].map((piece: any, key: number) =>
+                    piece === null ? null : { key, ...piece }
+                );
+                setTable(table);
+                setTeamOnTurn(data["GameState"]["team_on_turn"]);
+                setWinner(data["GameState"]["winner"]);
             } else if (data["GameUpdate"] !== undefined) {
-                setTable(data["GameUpdate"]["table"]);
+                const from = data["GameUpdate"]["from"];
+                const to = data["GameUpdate"]["to"];
+                table[to] = table[from];
+                table[from] = null;
+                if (data["GameUpdate"]["captured_piece"] !== null) {
+                    table[data["GameUpdate"]["captured_piece"]] = null;
+                }
+                setTable(table);
                 setTeamOnTurn(data["GameUpdate"]["team_on_turn"]);
                 setWinner(data["GameUpdate"]["winner"]);
             } else if (data["BadJump"] !== undefined) {
                 console.log("Bad jump!");
             }
         };
-    }
+    }, []);
 
     function sendJump(from: number, to: number) {
         if (websocket === undefined) return;
-
-        console.log(from, to);
 
         websocket.send(
             JSON.stringify({

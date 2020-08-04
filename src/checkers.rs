@@ -62,6 +62,11 @@ pub struct CheckersGame {
     mandatory_capturing_piece: Option<(usize, Piece)>,
 }
 
+pub enum JumpResult {
+    Good { captured_piece: Option<usize> },
+    Bad,
+}
+
 impl CheckersGame {
     fn from_table(table: Table) -> Self {
         Self {
@@ -210,19 +215,19 @@ impl CheckersGame {
     }
 
     /// Jump piece at position from to position to.
-    /// Returns true if the jump was successful, false otherwise.
-    pub fn jump(&mut self, from: usize, to: usize) -> bool {
+    /// Returns JumpResult::Good if the jump was successful, JumpResult::Bad otherwise.
+    pub fn jump(&mut self, from: usize, to: usize) -> JumpResult {
         let piece = match self.table[from] {
             Some(piece) => piece,
-            None => return false,
+            None => return JumpResult::Bad,
         };
 
         if piece.team != self.team_on_turn {
-            return false;
+            return JumpResult::Bad;
         }
 
         if !self.field_is_free(to) {
-            return false;
+            return JumpResult::Bad;
         }
 
         let mandatory_capturing_pieces: Vec<_> = self.mandatory_capturing_pieces();
@@ -232,7 +237,7 @@ impl CheckersGame {
                 .into_iter()
                 .any(|(pos, _)| pos == from)
         {
-            return false;
+            return JumpResult::Bad;
         }
 
         if !must_capture && Self::adjacent_positions(from, piece).contains(&to) {
@@ -241,7 +246,9 @@ impl CheckersGame {
             self.table[from] = None;
             self.mandatory_capturing_piece = None;
             self.toggle_team_on_turn();
-            true
+            JumpResult::Good {
+                captured_piece: None,
+            }
         } else if Self::capture_positions(from, piece).contains(&to) {
             let (captured_pos, captured_piece) = self.captured_piece(from, to);
             match captured_piece {
@@ -256,12 +263,15 @@ impl CheckersGame {
                         self.mandatory_capturing_piece = None;
                         self.toggle_team_on_turn();
                     }
-                    true
+
+                    JumpResult::Good {
+                        captured_piece: Some(captured_pos),
+                    }
                 }
-                _ => false,
+                _ => JumpResult::Bad,
             }
         } else {
-            false
+            JumpResult::Bad
         }
     }
 

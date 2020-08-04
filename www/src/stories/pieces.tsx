@@ -16,7 +16,7 @@ export const lightMan = () => (
         <Piece
             onClick={() => action("onClick")}
             index={0}
-            piece={{ kind: "Man", team: "Light" }}
+            piece={{ kind: "Man", team: "Light", key: 0 }}
             selected={false}
         />
     </svg>
@@ -30,7 +30,7 @@ export const darkMan = () => (
         <Piece
             onClick={() => action("onClick")}
             index={0}
-            piece={{ kind: "Man", team: "Dark" }}
+            piece={{ kind: "Man", team: "Dark", key: 0 }}
             selected={false}
         />
     </svg>
@@ -44,7 +44,7 @@ export const lightKing = () => (
         <Piece
             onClick={() => action("onClick")}
             index={0}
-            piece={{ kind: "King", team: "Light" }}
+            piece={{ kind: "King", team: "Light", key: 0 }}
             selected={false}
         />
     </svg>
@@ -58,7 +58,7 @@ export const darkKing = () => (
         <Piece
             onClick={() => action("onClick")}
             index={0}
-            piece={{ kind: "King", team: "Dark" }}
+            piece={{ kind: "King", team: "Dark", key: 0 }}
             selected={false}
         />
     </svg>

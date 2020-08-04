@@ -1,4 +1,5 @@
 export interface Piece {
+    key: number; // Unique key, used for drawing
     team: Team;
     kind: PieceKind;
 }

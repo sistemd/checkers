@@ -11,15 +11,13 @@ import "./animations.css";
 
 export interface PieceProps {
     onClick(): void;
-    piece: CheckersPiece | null;
+    piece: CheckersPiece;
     index: number;
     selected: boolean;
     flipCrown?: boolean;
 }
 
 export default function Piece(props: PieceProps) {
-    if (props.piece === null) return null;
-
     const radius = fieldWidth / 3;
     const row = Math.floor(props.index / 4);
     const column =
