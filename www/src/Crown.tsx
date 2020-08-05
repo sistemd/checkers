@@ -9,6 +9,7 @@ export interface CrownProps {
     onClick?(): void;
     column: number;
     row: number;
+    opacity: number;
     flip?: boolean;
 }
 
@@ -29,7 +30,8 @@ export default function Crown(props: CrownProps) {
 
     return (
         <svg
-            className="animate-position"
+            opacity={props.opacity}
+            className="animate"
             onClick={props.onClick}
             style={{
                 transformOrigin: "center",

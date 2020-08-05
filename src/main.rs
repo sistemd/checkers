@@ -2,8 +2,11 @@ use actix::prelude::*;
 use actix_files;
 use actix_web::web;
 use actix_web::{middleware::Logger, App, HttpResponse, HttpServer, Responder};
+use pnet::datalink;
+use pnet::ipnetwork::IpNetwork;
 use std::fs;
 use std::io::prelude::*;
+use std::net::Ipv4Addr;
 
 mod checkers;
 mod game_master;
@@ -22,7 +25,7 @@ async fn main() -> std::io::Result<()> {
 
     let gm = game_master::GameMaster::new().start();
     let player_id_counter = web::Data::new(ws_server::PlayerIDCounter::new());
-    HttpServer::new(move || {
+    let mut server = HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .route("/", web::get().to(index))
@@ -31,10 +34,36 @@ async fn main() -> std::io::Result<()> {
                 gm.clone(),
                 player_id_counter.clone(),
             ))
-    })
-    .bind("127.0.0.1:8080")?
-    .run()
-    .await
+    });
+
+    let port = 8080;
+
+    for ip in ips() {
+        server = server.bind((ip, port)).unwrap();
+    }
+
+    println!("Listening on {}.", ips_string(port));
+
+    server.run().await
+}
+
+fn ips() -> impl Iterator<Item = Ipv4Addr> {
+    datalink::interfaces()
+        .into_iter()
+        .map(|iface| {
+            iface.ips.into_iter().filter_map(|ip| match ip {
+                IpNetwork::V4(v4) => Some(v4.ip()),
+                IpNetwork::V6(_) => None,
+            })
+        })
+        .flatten()
+}
+
+fn ips_string(port: u16) -> String {
+    ips()
+        .map(|ip| format!("http://{}:{}", ip, port))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 #[cfg(test)]

@@ -63,7 +63,10 @@ pub struct CheckersGame {
 }
 
 pub enum JumpResult {
-    Good { captured_piece: Option<usize> },
+    Good {
+        captured_piece: Option<usize>,
+        crowned: bool,
+    },
     Bad,
 }
 
@@ -217,7 +220,7 @@ impl CheckersGame {
     /// Jump piece at position from to position to.
     /// Returns JumpResult::Good if the jump was successful, JumpResult::Bad otherwise.
     pub fn jump(&mut self, from: usize, to: usize) -> JumpResult {
-        let piece = match self.table[from] {
+        let mut piece = match self.table[from] {
             Some(piece) => piece,
             None => return JumpResult::Bad,
         };
@@ -241,19 +244,27 @@ impl CheckersGame {
         }
 
         if !must_capture && Self::adjacent_positions(from, piece).contains(&to) {
-            let piece = Self::promote_king(to, piece);
+            let should_promote = Self::should_promote_piece(to, piece);
+            if should_promote {
+                piece = Self::promote_piece(piece);
+            }
             self.table[to] = Some(piece);
             self.table[from] = None;
             self.mandatory_capturing_piece = None;
             self.toggle_team_on_turn();
             JumpResult::Good {
                 captured_piece: None,
+                crowned: should_promote,
             }
         } else if Self::capture_positions(from, piece).contains(&to) {
             let (captured_pos, captured_piece) = self.captured_piece(from, to);
             match captured_piece {
                 Some(captured_piece) if captured_piece.team != piece.team => {
-                    let piece = Self::promote_king(to, piece);
+                    let should_promote = Self::should_promote_piece(to, piece);
+                    if should_promote {
+                        piece = Self::promote_piece(piece);
+                    }
+
                     self.table[to] = Some(piece);
                     self.table[from] = None;
                     self.table[captured_pos] = None;
@@ -266,6 +277,7 @@ impl CheckersGame {
 
                     JumpResult::Good {
                         captured_piece: Some(captured_pos),
+                        crowned: should_promote,
                     }
                 }
                 _ => JumpResult::Bad,
@@ -285,10 +297,18 @@ impl CheckersGame {
         (captured_pos, self.table[captured_pos])
     }
 
-    fn promote_king(pos: usize, piece: Piece) -> Piece {
+    fn should_promote_piece(pos: usize, piece: Piece) -> bool {
         match piece {
-            Piece::LIGHT_MAN if 28 <= pos && pos < 32 => Piece::LIGHT_KING,
-            Piece::DARK_MAN if pos < 4 => Piece::DARK_KING,
+            Piece::LIGHT_MAN if 28 <= pos && pos < 32 => true,
+            Piece::DARK_MAN if pos < 4 => true,
+            _ => false,
+        }
+    }
+
+    fn promote_piece(piece: Piece) -> Piece {
+        match piece {
+            Piece::LIGHT_MAN => Piece::LIGHT_KING,
+            Piece::DARK_MAN => Piece::DARK_KING,
             _ => piece,
         }
     }

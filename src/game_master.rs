@@ -68,7 +68,10 @@ impl OngoingGame {
     fn jump(&mut self, player_id: PlayerID, from: usize, to: usize) {
         if self.is_on_turn(player_id) {
             match self.game.jump(from, to) {
-                JumpResult::Good { captured_piece } => self.send_updates(from, to, captured_piece),
+                JumpResult::Good {
+                    captured_piece,
+                    crowned,
+                } => self.send_updates(from, to, captured_piece, crowned),
                 JumpResult::Bad => self.send_bad_jump(player_id),
             }
         } else {
@@ -116,10 +119,11 @@ impl OngoingGame {
         self.dark_player.game_state_recipient.do_send(msg).unwrap();
     }
 
-    fn send_updates(&self, from: usize, to: usize, captured_piece: Option<usize>) {
+    fn send_updates(&self, from: usize, to: usize, captured_piece: Option<usize>, crowned: bool) {
         let msg = GameUpdate {
             from,
             to,
+            crowned,
             captured_piece,
             team_on_turn: self.game.team_on_turn(),
             winner: self.game.winner(),
@@ -180,6 +184,7 @@ pub struct GameState {
 pub struct GameUpdate {
     from: usize,
     to: usize,
+    crowned: bool,
     captured_piece: Option<usize>,
     team_on_turn: Team,
     winner: Option<Team>,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Board from "./Board";
-import { PiecesTable, Team } from "./checkers";
+import { Game, Team } from "./checkers";
 
 export default function App() {
     let [playerId, setPlayerId] = useState<number>();
@@ -8,11 +8,11 @@ export default function App() {
     const [gameId, setGameId] = useState<number>();
     const [team, setTeam] = useState<Team>("Light");
     const [winner, setWinner] = useState<Team | null>(null);
-    let [table, setTable] = useState<PiecesTable>([]);
+    let [game, setGame] = useState<Game>();
     const [teamOnTurn, setTeamOnTurn] = useState<Team>("Light");
 
     useEffect(() => {
-        const websocket = new WebSocket("ws://localhost:8080/ws");
+        const websocket = new WebSocket(`ws://${window.location.host}/ws`);
         setWebsocket(websocket);
 
         websocket.onopen = () => {
@@ -42,23 +42,23 @@ export default function App() {
                         : "Dark"
                 );
             } else if (data["GameState"] !== undefined) {
-                table = data["GameState"][
-                    "table"
-                ].map((piece: any, key: number) =>
-                    piece === null ? null : { key, ...piece }
-                );
-                setTable(table);
+                game = new Game(data["GameState"]["table"]);
+                setGame(game);
                 setTeamOnTurn(data["GameState"]["team_on_turn"]);
                 setWinner(data["GameState"]["winner"]);
             } else if (data["GameUpdate"] !== undefined) {
+                if (game === undefined) {
+                    throw new Error(
+                        "trying to update, but pieces is undefined"
+                    );
+                }
+
                 const from = data["GameUpdate"]["from"];
                 const to = data["GameUpdate"]["to"];
-                table[to] = table[from];
-                table[from] = null;
-                if (data["GameUpdate"]["captured_piece"] !== null) {
-                    table[data["GameUpdate"]["captured_piece"]] = null;
-                }
-                setTable(table);
+                const captured = data["GameUpdate"]["captured_piece"];
+                const crowned = data["GameUpdate"]["crowned"];
+                game.update(from, to, captured, crowned);
+                setGame(game);
                 setTeamOnTurn(data["GameUpdate"]["team_on_turn"]);
                 setWinner(data["GameUpdate"]["winner"]);
             } else if (data["BadJump"] !== undefined) {
@@ -82,8 +82,9 @@ export default function App() {
 
     return (
         <div>
-            <Board onJumpSelected={sendJump} table={table} team={team} />
-
+            {game !== undefined && (
+                <Board onJumpSelected={sendJump} game={game} team={team} />
+            )}
             <p>
                 Player ID - Game ID: {playerId} - {gameId}
             </p>

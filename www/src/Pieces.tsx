@@ -1,28 +1,25 @@
 import React from "react";
-import { PiecesTable } from "./checkers";
+import { Piece as CheckersPiece } from "./checkers";
 import Piece from "./Piece";
+import _ from "lodash";
 
 export interface PiecesProps {
     onPieceClicked(index: number): void;
-    table: PiecesTable;
-    selectedIndex?: number;
+    pieces: CheckersPiece[];
+    selectedPos?: number;
     flipCrowns?: boolean;
 }
 
 export default function Pieces(props: PiecesProps) {
-    console.log(props.table);
-    const pieces = props.table.map((piece, index) =>
-        piece === null ? null : (
-            <Piece
-                onClick={() => props.onPieceClicked(index)}
-                key={piece.key}
-                piece={piece}
-                index={index}
-                selected={index === props.selectedIndex}
-                flipCrown={props.flipCrowns}
-            />
-        )
-    );
+    let pieces = props.pieces.map((piece, index) => (
+        <Piece
+            onClick={() => props.onPieceClicked(piece.pos)}
+            key={index}
+            piece={piece}
+            selected={piece.pos === props.selectedPos}
+            flipCrown={props.flipCrowns}
+        />
+    ));
 
     return <>{pieces}</>;
 }

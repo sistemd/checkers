@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Board from "../Board";
 import { boardSize } from "../Fields";
 import _ from "lodash";
-import { PiecesTable } from "../checkers";
+import { Game } from "../checkers";
 import { action } from "@storybook/addon-actions";
 
 export default {
@@ -12,7 +12,7 @@ export default {
 
 export const boardForLightPlayer = () => (
     <Board
-        table={samplePiecesTable()}
+        game={new Game(samplePiecesTable())}
         team="Light"
         onJumpSelected={(start, end) => action(`jumpSelected ${start} ${end}`)}
     />
@@ -20,32 +20,33 @@ export const boardForLightPlayer = () => (
 
 export const boardForDarkPlayer = () => (
     <Board
-        table={samplePiecesTable()}
+        game={new Game(samplePiecesTable())}
         team="Dark"
         onJumpSelected={(start, end) => action(`jumpSelected ${start} ${end}`)}
     />
 );
 
 export function movingAllPiecesFreely() {
-    const [table, setTable] = useState(samplePiecesTable());
+    const [game, setGame] = useState(new Game(samplePiecesTable()));
 
-    function onJumpSelected(start: number, end: number) {
-        table[end] = table[start];
-        table[start] = null;
-        setTable(table);
+    function onJumpSelected(from: number, to: number) {
+        console.log(game.pieces);
+        game.update(from, to);
+        console.log(game.pieces);
+        setGame(game);
     }
 
-    return <Board table={table} team="Dark" onJumpSelected={onJumpSelected} />;
+    return <Board game={game} team="Dark" onJumpSelected={onJumpSelected} />;
 }
 
 function samplePiecesTable() {
-    const table: PiecesTable = _.range(boardSize / 2).map(() => null);
-    table[0] = { kind: "Man", team: "Light", key: 0 };
-    table[1] = { kind: "Man", team: "Light", key: 1 };
-    table[5] = { kind: "Man", team: "Light", key: 2 };
-    table[6] = { kind: "King", team: "Dark", key: 3 };
-    table[25] = { kind: "Man", team: "Dark", key: 4 };
-    table[26] = { kind: "Man", team: "Dark", key: 5 };
-    table[15] = { kind: "King", team: "Light", key: 6 };
+    const table: any = _.range(boardSize / 2).map(() => null);
+    table[0] = { kind: "Man", team: "Light" };
+    table[1] = { kind: "Man", team: "Light" };
+    table[5] = { kind: "Man", team: "Light" };
+    table[6] = { kind: "King", team: "Dark" };
+    table[25] = { kind: "Man", team: "Dark" };
+    table[26] = { kind: "Man", team: "Dark" };
+    table[15] = { kind: "King", team: "Light" };
     return table;
 }

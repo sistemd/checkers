@@ -1,5 +1,6 @@
-.animate-position {
-    transition-property: transform, cx, cy;
-    transition-duration: 1s;
+.animate {
+    transition-property: transform, cx, cy, opacity, r;
+    transition-duration: 0.3s;
     transition-timing-function: ease;
 }
+

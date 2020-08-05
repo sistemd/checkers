@@ -1,4 +1,4 @@
-const CopyPlugin = require('copy-webpack-plugin');
+const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
     mode: "production",
@@ -7,7 +7,7 @@ module.exports = {
     devtool: "source-map",
 
     resolve: {
-        extensions: [".ts", ".tsx", ".js"]
+        extensions: [".ts", ".tsx", ".js"],
     },
 
     module: {
@@ -15,33 +15,39 @@ module.exports = {
             {
                 test: /\.css$/i,
                 exclude: /node_modules/,
-                use: ['css-loader'],
+                use: ["style-loader", "css-loader"],
             },
             {
                 test: /\.ts(x?)$/,
                 exclude: /node_modules/,
                 use: [
                     {
-                        loader: "ts-loader"
-                    }
-                ]
+                        loader: "ts-loader",
+                    },
+                ],
             },
             // All output '.js' files will have any sourcemaps re-processed by 'source-map-loader'.
             {
                 enforce: "pre",
                 test: /\.js$/,
-                loader: "source-map-loader"
-            }
-        ]
+                loader: "source-map-loader",
+            },
+        ],
     },
 
     plugins: [
         new CopyPlugin({
             patterns: [
-                {from: 'node_modules/react/umd/react.development.js', to: './'},
-                {from: 'node_modules/react-dom/umd/react-dom.development.js', to: './'}
+                {
+                    from: "node_modules/react/umd/react.development.js",
+                    to: "./",
+                },
+                {
+                    from: "node_modules/react-dom/umd/react-dom.development.js",
+                    to: "./",
+                },
             ],
-        })
+        }),
     ],
 
     // When importing a module whose path matches one of the following, just
@@ -49,7 +55,7 @@ module.exports = {
     // This is important because it allows us to avoid bundling all of our
     // dependencies, which allows browsers to cache those libraries between builds.
     externals: {
-        "react": "React",
-        "react-dom": "ReactDOM"
-    }
+        react: "React",
+        "react-dom": "ReactDOM",
+    },
 };
